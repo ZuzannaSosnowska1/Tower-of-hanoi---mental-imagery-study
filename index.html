@@ -2,38 +2,45 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>Tower of Hanoi Task</title>
+
+<title>Tower of Hanoi Experiment</title>
 
 <script src="https://unpkg.com/jspsych@7.3.3"></script>
 <link href="https://unpkg.com/jspsych@7.3.3/css/jspsych.css" rel="stylesheet">
 
-<script src="https://unpkg.com/@jspsych/plugin-html-button-response@1.1.3"></script>
 <script src="https://unpkg.com/@jspsych/plugin-survey-text@1.1.3"></script>
 
 <style>
-.peg-container {
+#board {
   display:flex;
   justify-content:space-around;
-  margin-top:20px;
+  margin-top:40px;
 }
 
 .peg {
   width:120px;
-  height:220px;
-  border:2px solid black;
+  height:250px;
+  border-left:4px solid black;
+  border-right:4px solid black;
+  position:relative;
   display:flex;
   flex-direction:column-reverse;
   align-items:center;
-  padding:5px;
+  padding-bottom:10px;
 }
 
 .disk {
   height:25px;
-  margin:3px;
-  text-align:center;
-  color:white;
+  margin:2px;
   border-radius:5px;
+  color:white;
+  text-align:center;
   cursor:pointer;
+}
+
+#info {
+  text-align:center;
+  margin-top:20px;
 }
 </style>
 
@@ -43,12 +50,13 @@
 
 <script>
 
-// =====================
+// =========================
 // INIT
-// =====================
+// =========================
 
 const jsPsych = initJsPsych({
   on_finish: function(){
+
     jsPsych.data.get().localSave("csv","hanoi_data.csv");
 
     window.location.href =
@@ -58,142 +66,149 @@ const jsPsych = initJsPsych({
 
 let timeline = [];
 
-// =====================
+// =========================
 // ID
-// =====================
+// =========================
 
 timeline.push({
   type: jsPsychSurveyText,
   questions:[{prompt:"Participant ID:", name:"id"}]
 });
 
-// =====================
+// =========================
 // INSTRUCTIONS
-// =====================
+// =========================
 
 timeline.push({
   type: jsPsychHtmlButtonResponse,
   stimulus: `
-    <h2>Tower of Hanoi</h2>
-    <p>Move all disks from A → C</p>
+    <h2>Tower of Hanoi Task</h2>
+    <p>Move all disks from left peg to right peg.</p>
+
     <ul>
-      <li>Only one disk at a time</li>
+      <li>Only move one disk at a time</li>
       <li>Only top disk can be moved</li>
-      <li>No larger on smaller</li>
+      <li>No larger disk on smaller disk</li>
     </ul>
-    <p>Click a peg to select source, then destination.</p>
+
+    <p>Time starts when you make your first move.</p>
   `,
   choices:["Start"]
 });
 
-// =====================
-// REAL STATE ENGINE
-// =====================
-
-let pegs;
-let selected = null;
-let moves = [];
-
-function render(){
-  return `
-  <div class="peg-container">
-
-    <div class="peg" id="A"></div>
-    <div class="peg" id="B"></div>
-    <div class="peg" id="C"></div>
-
-  </div>
-  <p>Click source peg, then destination peg.</p>
-  `;
-}
-
-function drawState(){
-  ["A","B","C"].forEach(id=>{
-    let peg = document.getElementById(id);
-    peg.innerHTML = `<b>${id}</b>`;
-
-    pegs[id].slice().reverse().forEach(d=>{
-      let div = document.createElement("div");
-      div.className="disk";
-      div.style.width = (40 + d*30)+"px";
-      div.style.background = ["green","orange","red","blue"][d-1];
-      div.textContent = d;
-      peg.appendChild(div);
-    });
-  });
-}
-
-function move(from,to){
-  let fromPeg = pegs[from];
-  let toPeg = pegs[to];
-
-  if(fromPeg.length===0) return false;
-
-  let disk = fromPeg[fromPeg.length-1];
-  let top = toPeg[toPeg.length-1];
-
-  if(top && disk > top) return false;
-
-  fromPeg.pop();
-  toPeg.push(disk);
-
-  moves.push({from,to,disk});
-  return true;
-}
-
-// =====================
-// TASK TRIAL
-// =====================
+// =========================
+// REAL TASK
+// =========================
 
 timeline.push({
   type: jsPsychHtmlButtonResponse,
-  stimulus: render,
-  choices:[],
-  on_load:function(){
+  stimulus: `
+    <h3>Tower of Hanoi</h3>
 
-    pegs = {
-      A:[3,2,1],
-      B:[],
-      C:[]
-    };
+    <div id="info">
+      <p>Time: <span id="timer">0</span> sec</p>
+      <p>Moves: <span id="moves">0</span></p>
+    </div>
 
-    drawState();
+    <div id="board">
 
-    let source = null;
+      <div class="peg" id="A">
+        <div class="disk" data-size="3" style="width:120px;background:#e74c3c;">3</div>
+        <div class="disk" data-size="2" style="width:90px;background:#f39c12;">2</div>
+        <div class="disk" data-size="1" style="width:60px;background:#2ecc71;">1</div>
+        <p>A</p>
+      </div>
 
-    document.querySelectorAll(".peg").forEach(p=>{
-      p.addEventListener("click", ()=>{
+      <div class="peg" id="B"><p>B</p></div>
+      <div class="peg" id="C"><p>C</p></div>
 
-        let id = p.id;
+    </div>
 
-        if(!source){
-          source = id;
-        } else {
+    <button id="finish">Finish</button>
+  `,
 
-          move(source,id);
-          source = null;
-          drawState();
+  choices: [],
 
-          // CHECK WIN
-          if(pegs.C.length===3){
-            setTimeout(()=>jsPsych.finishTrial(),500);
-          }
+  on_load: function(){
 
+    let selected = null;
+    let moves = 0;
+    let startTime = null;
+    let timerInterval;
+
+    function getTop(peg){
+      return peg.querySelector(".disk:last-of-type");
+    }
+
+    function updateTimer(){
+      let now = Date.now();
+      document.getElementById("timer").innerText =
+        Math.floor((now - startTime)/1000);
+    }
+
+    function checkWin(){
+      if(document.getElementById("C").querySelectorAll(".disk").length === 3){
+        clearInterval(timerInterval);
+        setTimeout(()=>jsPsych.finishTrial(),500);
+      }
+    }
+
+    document.querySelectorAll(".disk").forEach(d=>{
+      d.setAttribute("draggable", true);
+
+      d.addEventListener("dragstart", e=>{
+        selected = e.target;
+      });
+    });
+
+    document.querySelectorAll(".peg").forEach(peg=>{
+      peg.addEventListener("dragover", e=>{
+        e.preventDefault();
+      });
+
+      peg.addEventListener("drop", e=>{
+        e.preventDefault();
+
+        if(!selected) return;
+
+        let top = getTop(peg);
+
+        let sSize = parseInt(selected.dataset.size);
+        let tSize = top ? parseInt(top.dataset.size) : 999;
+
+        // START TIMER ON FIRST MOVE
+        if(startTime === null){
+          startTime = Date.now();
+          timerInterval = setInterval(updateTimer, 500);
         }
 
+        // RULE CHECK
+        if(sSize < tSize){
+          peg.appendChild(selected);
+          moves++;
+          document.getElementById("moves").innerText = moves;
+        }
+
+        selected = null;
+
+        checkWin();
       });
+    });
+
+    document.getElementById("finish").addEventListener("click", ()=>{
+      jsPsych.finishTrial();
     });
 
   },
 
-  on_finish:function(data){
-    data.moves = JSON.stringify(moves);
+  on_finish: function(data){
+    data.task = "tower_of_hanoi_real";
   }
 });
 
-// =====================
+// =========================
 // END
-// =====================
+// =========================
 
 timeline.push({
   type: jsPsychHtmlButtonResponse,
