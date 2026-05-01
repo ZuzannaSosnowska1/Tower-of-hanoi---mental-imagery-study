@@ -3,13 +3,40 @@
 <head>
 <meta charset="UTF-8">
 
-<title>Imagery & Problem Solving Study</title>
+<title>Tower of Hanoi Study</title>
 
 <script src="https://unpkg.com/jspsych@7.3.3"></script>
 <link href="https://unpkg.com/jspsych@7.3.3/css/jspsych.css" rel="stylesheet">
 
-<script src="https://unpkg.com/@jspsych/plugin-html-button-response@1.1.3"></script>
 <script src="https://unpkg.com/@jspsych/plugin-survey-text@1.1.3"></script>
+<script src="https://unpkg.com/@jspsych/plugin-html-button-response@1.1.3"></script>
+
+<style>
+.peg-container {
+  display: flex;
+  justify-content: space-around;
+  margin-top: 20px;
+}
+
+.peg {
+  width: 120px;
+  height: 220px;
+  border: 2px solid black;
+  display: flex;
+  flex-direction: column-reverse;
+  align-items: center;
+  padding: 5px;
+}
+
+.disk {
+  height: 25px;
+  margin: 3px;
+  border-radius: 5px;
+  text-align: center;
+  color: white;
+  cursor: grab;
+}
+</style>
 
 </head>
 
@@ -18,14 +45,13 @@
 <script>
 
 // =====================
-// INITIALIZE EXPERIMENT
+// INIT
 // =====================
 
 const jsPsych = initJsPsych({
   on_finish: function() {
     jsPsych.data.get().localSave('csv', 'tower_hanoi_data.csv');
 
-    // REDIRECT TO GOOGLE FORM 2
     window.location.href = "https://docs.google.com/forms/d/e/1FAIpQLSe2xc_3B20WsNyfke8pMoPjkC4HukajEcNG3HWK6LL_wsBx3Q/viewform?usp=dialog";
   }
 });
@@ -39,10 +65,7 @@ let timeline = [];
 timeline.push({
   type: jsPsychSurveyText,
   questions: [
-    {
-      prompt: "Enter your participant ID:",
-      name: "participant_id"
-    }
+    { prompt: "Enter participant ID:", name: "id" }
   ]
 });
 
@@ -53,90 +76,103 @@ timeline.push({
 timeline.push({
   type: jsPsychHtmlButtonResponse,
   stimulus: `
-    <h2>Tower of Hanoi Task</h2>
-    <p>In this task, you will solve a problem-solving puzzle.</p>
-
+    <h2>Tower of Hanoi</h2>
+    <p>Move all disks from Peg A to Peg C.</p>
     <p><b>Rules:</b></p>
     <ul>
-      <li>Only one disk can be moved at a time</li>
-      <li>Larger disk cannot be placed on a smaller disk</li>
-      <li>The goal is to move all disks to the target peg</li>
+      <li>Only one disk at a time</li>
+      <li>No larger disk on smaller disk</li>
     </ul>
-
-    <p>Try to choose the best logical move each time.</p>
   `,
   choices: ["Start"]
 });
 
 // =====================
-// TRIAL 1
+// REAL TASK
 // =====================
 
 timeline.push({
   type: jsPsychHtmlButtonResponse,
   stimulus: `
-    <h3>Trial 1</h3>
-    <p>All disks are on Peg A.</p>
-    <p>What is the best first move?</p>
+    <h3>Interactive Task</h3>
+
+    <div class="peg-container">
+
+      <div class="peg" id="A">
+        <div class="disk" data-size="3" style="width:120px; background:red;">3</div>
+        <div class="disk" data-size="2" style="width:90px; background:orange;">2</div>
+        <div class="disk" data-size="1" style="width:60px; background:green;">1</div>
+        <p>Peg A</p>
+      </div>
+
+      <div class="peg" id="B">
+        <p>Peg B</p>
+      </div>
+
+      <div class="peg" id="C">
+        <p>Peg C</p>
+      </div>
+
+    </div>
+
+    <br>
+    <button id="finish">Finish Task</button>
   `,
-  choices: [
-    "Move small disk A → B",
-    "Move small disk A → C",
-    "Move large disk A → B"
-  ],
-  data: {
-    correct: 1
+
+  choices: [],
+
+  on_load: function() {
+
+    let dragged = null;
+
+    function getTopDisk(peg) {
+      let disks = peg.querySelectorAll(".disk");
+      return disks[disks.length - 1];
+    }
+
+    document.querySelectorAll(".disk").forEach(disk => {
+      disk.addEventListener("dragstart", e => {
+        dragged = e.target;
+      });
+    });
+
+    document.querySelectorAll(".disk").forEach(disk => {
+      disk.setAttribute("draggable", true);
+    });
+
+    document.querySelectorAll(".peg").forEach(peg => {
+
+      peg.addEventListener("dragover", e => {
+        e.preventDefault();
+      });
+
+      peg.addEventListener("drop", e => {
+        e.preventDefault();
+
+        if (!dragged) return;
+
+        let top = getTopDisk(peg);
+
+        let draggedSize = parseInt(dragged.dataset.size);
+        let topSize = top ? parseInt(top.dataset.size) : 999;
+
+        // RULE CHECK (core logic)
+        if (draggedSize < topSize) {
+          peg.appendChild(dragged);
+        }
+
+        dragged = null;
+      });
+    });
+
+    document.getElementById("finish").addEventListener("click", function() {
+      jsPsych.finishTrial();
+    });
+
   },
-  on_finish: function(data){
-    data.correct_response = (data.response == data.correct);
-  }
-});
 
-// =====================
-// TRIAL 2
-// =====================
-
-timeline.push({
-  type: jsPsychHtmlButtonResponse,
-  stimulus: `
-    <h3>Trial 2</h3>
-    <p>Next step in the puzzle.</p>
-    <p>What should you do next?</p>
-  `,
-  choices: [
-    "Move disk B → C",
-    "Move disk A → C",
-    "Move disk C → B"
-  ],
-  data: {
-    correct: 0
-  },
-  on_finish: function(data){
-    data.correct_response = (data.response == data.correct);
-  }
-});
-
-// =====================
-// TRIAL 3
-// =====================
-
-timeline.push({
-  type: jsPsychHtmlButtonResponse,
-  stimulus: `
-    <h3>Trial 3</h3>
-    <p>Another step in the problem.</p>
-    <p>Choose the best move:</p>
-  `,
-  choices: [
-    "Move small disk A → B",
-    "Move middle disk A → C",
-    "Move large disk A → C"
-  ],
-  data: {
-    correct: 0
-  },
-  on_finish: function(data){
-    data.correct_response = (data.response == data.correct);
+  on_finish: function(data) {
+    data.task = "tower_of_hanoi_real";
   }
 });
 
@@ -146,16 +182,12 @@ timeline.push({
 
 timeline.push({
   type: jsPsychHtmlButtonResponse,
-  stimulus: `
-    <h2>Task Complete</h2>
-    <p>Thank you for participating.</p>
-    <p>Click continue to finish.</p>
-  `,
-  choices: ["Finish"]
+  stimulus: `<h3>Task complete</h3>`,
+  choices: ["Continue"]
 });
 
 // =====================
-// RUN EXPERIMENT
+// RUN
 // =====================
 
 jsPsych.run(timeline);
