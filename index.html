@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Problem Solving Task</title>
+
+<script src="https://unpkg.com/jspsych@7.3.3"></script>
+<link href="https://unpkg.com/jspsych@7.3.3/css/jspsych.css" rel="stylesheet">
+
+<script src="https://unpkg.com/@jspsych/plugin-html-button-response@1.1.3"></script>
+<script src="https://unpkg.com/@jspsych/plugin-survey-text@1.1.3"></script>
+
+</head>
+<body></body>
+
+<script>
+
+const jsPsych = initJsPsych({
+  on_finish: function () {
+    window.location.href = "PASTE_FORM_B_LINK_HERE";
+  }
+});
+
+let timeline = [];
+
+timeline.push({
+  type: jsPsychSurveyText,
+  questions: [
+    {prompt: "Enter your participant ID again:"}
+  ]
+});
+
+timeline.push({
+  type: jsPsychHtmlButtonResponse,
+  stimulus: `
+  <h2>Tower of Hanoi</h2>
+  <p>Move one disk at a time.</p>
+  <p>No larger disk on smaller disk.</p>
+  `,
+  choices: ["Start"]
+});
+
+timeline.push({
+  type: jsPsychHtmlButtonResponse,
+  stimulus: `
+  <p>All disks are on Peg A.</p>
+  <p>What is the best first move?</p>
+  `,
+  choices: [
+    "Move smallest disk A→B",
+    "Move largest disk A→C",
+    "Move middle disk A→B"
+  ]
+});
+
+timeline.push({
+  type: jsPsychHtmlButtonResponse,
+  stimulus: `
+  <p>Next move?</p>
+  `,
+  choices: [
+    "Move smallest disk B→C",
+    "Move middle disk A→C",
+    "Move largest disk A→B"
+  ]
+});
+
+jsPsych.run(timeline);
+
+</script>
+</html>
