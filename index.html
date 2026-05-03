@@ -64,7 +64,6 @@ body{
   box-sizing:border-box;
 }
 
-/* highlighted selected disk */
 .disk.selected{
   outline:4px solid #111;
   box-shadow:0 0 12px rgba(0,0,0,.35);
@@ -100,7 +99,7 @@ const jsPsych = initJsPsych({
     jsPsych.data.get().localSave("csv","hanoi_data.csv");
 
     window.location.href =
-      "https://docs.google.com/forms/d/e/1FAIpQLSe2xc_3B20WsNyfke8pMoPjkC4HukajEcNG3HWK6LL_wsBx3Q/viewform";
+      "https://docs.google.com/forms/d/e/1FAIpQLSe2xc_3B20WsNyfke8pMoPjkC4HukajEcNG3HWK6LL_wsBx3Q/viewform?usp=dialog";
   }
 });
 
@@ -182,10 +181,6 @@ timeline.push({
 
   on_load: function(){
 
-    // -------------------
-    // STATE
-    // -------------------
-
     let pegs = {
       A:[3,2,1],
       B:[],
@@ -198,10 +193,6 @@ timeline.push({
     let moves = 0;
     let startTime = null;
     let timerInterval = null;
-
-    // -------------------
-    // HELPERS
-    // -------------------
 
     function msg(text){
       document.getElementById("message").innerText = text;
@@ -238,10 +229,6 @@ timeline.push({
       return "#e74c3c";
     }
 
-    // -------------------
-    // DRAW BOARD
-    // -------------------
-
     function render(){
 
       ["A","B","C"].forEach(name=>{
@@ -267,7 +254,6 @@ timeline.push({
 
           disk.innerText = size;
 
-          // ONLY top disk selectable
           if(i === stack.length - 1){
             disk.addEventListener("click", function(e){
               e.stopPropagation();
@@ -285,7 +271,6 @@ timeline.push({
           peg.appendChild(disk);
         }
 
-        // click peg to move selected disk there
         peg.onclick = function(){
 
           if(selectedPeg === null) return;
@@ -299,7 +284,6 @@ timeline.push({
           const movingDisk = pegs[selectedPeg][pegs[selectedPeg].length - 1];
           const targetTop = getTopDiskSize(name);
 
-          // rule check
           if(targetTop !== null && movingDisk > targetTop){
             msg("Illegal move: larger disk cannot go on smaller disk.");
             return;
@@ -322,10 +306,6 @@ timeline.push({
 
       });
     }
-
-    // -------------------
-    // WIN CHECK
-    // -------------------
 
     function checkWin(){
 
