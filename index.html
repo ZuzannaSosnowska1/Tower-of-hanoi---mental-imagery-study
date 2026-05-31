@@ -58,7 +58,6 @@ body{
   color:white;
   cursor:pointer;
   user-select:none;
-  transition:0.2s;
 }
 
 .disk.selected{
@@ -83,11 +82,18 @@ body{
 <script>
 
 // ==========================
-// GOOGLE FORM LINK (YOUR DATA)
+// GOOGLE FORM 2 LINK
 // ==========================
 
 const GOOGLE_FORM_BASE =
 "https://docs.google.com/forms/d/e/1FAIpQLSe2xc_3B20WsNyfke8pMoPjkC4HukajEcNG3HWK6LL_wsBx3Q/viewform?usp=pp_url";
+
+// ==========================
+// GLOBAL VARIABLES
+// ==========================
+
+let participant_id = "";
+let task_data = {moves:0, time:0, solved:false};
 
 // ==========================
 // INIT
@@ -96,16 +102,12 @@ const GOOGLE_FORM_BASE =
 const jsPsych = initJsPsych({
   on_finish: function(data){
 
-    let pid =
-      jsPsych.data.get().filter({trial_type:"survey-text"}).values()[0]
-      ?.response?.participant_id || "";
-
     let url =
       GOOGLE_FORM_BASE +
-      "&entry.146328682=" + encodeURIComponent(pid) +
-      "&entry.558532723=" + encodeURIComponent(data.moves || 0) +
-      "&entry.1869517534=" + encodeURIComponent(data.time || 0) +
-      "&entry.1053943810=" + encodeURIComponent(data.solved || false);
+      "&entry.146328682=" + encodeURIComponent(participant_id) +
+      "&entry.558532723=" + encodeURIComponent(task_data.moves) +
+      "&entry.1869517534=" + encodeURIComponent(task_data.time) +
+      "&entry.1053943810=" + encodeURIComponent(task_data.solved);
 
     window.location.href = url;
   }
@@ -122,7 +124,10 @@ timeline.push({
   questions:[{
     prompt:"Participant ID:",
     name:"participant_id"
-  }]
+  }],
+  on_finish: function(data){
+    participant_id = data.response.participant_id;
+  }
 });
 
 // ==========================
@@ -135,14 +140,11 @@ timeline.push({
     <h2>Tower of Hanoi</h2>
     <p>Move all disks from A to C.</p>
 
-    <p><b>Rules:</b></p>
     <ul>
-      <li>One disk at a time</li>
-      <li>Only top disk</li>
-      <li>No larger on smaller</li>
+      <li>Only one disk at a time</li>
+      <li>Only top disk can move</li>
+      <li>No larger disk on smaller disk</li>
     </ul>
-
-    <p>Click disk → then click peg</p>
   `,
   choices:["Start"]
 });
@@ -162,36 +164,19 @@ timeline.push({
     <div id="message"></div>
 
     <div id="board">
-
-      <div class="peg" id="A">
-        <div class="rod"></div>
-        <div class="peg-label">A</div>
-      </div>
-
-      <div class="peg" id="B">
-        <div class="rod"></div>
-        <div class="peg-label">B</div>
-      </div>
-
-      <div class="peg" id="C">
-        <div class="rod"></div>
-        <div class="peg-label">C</div>
-      </div>
-
+      <div class="peg" id="A"><div class="rod"></div><div class="peg-label">A</div></div>
+      <div class="peg" id="B"><div class="rod"></div><div class="peg-label">B</div></div>
+      <div class="peg" id="C"><div class="rod"></div><div class="peg-label">C</div></div>
     </div>
 
     <button id="finish">Finish</button>
   `,
+
   choices: [],
 
   on_load: function(){
 
-    let pegs = {
-      A:[3,2,1],
-      B:[],
-      C:[]
-    };
-
+    let pegs = {A:[3,2,1], B:[], C:[]};
     let selected = null;
     let moves = 0;
     let start = null;
@@ -221,12 +206,9 @@ timeline.push({
           d.innerText=size;
 
           if(i===pegs[p].length-1){
-
             d.onclick = function(e){
               e.stopPropagation();
-
               document.querySelectorAll(".disk").forEach(x=>x.classList.remove("selected"));
-
               selected = {peg:p,size:size};
               d.classList.add("selected");
             };
@@ -238,11 +220,6 @@ timeline.push({
         peg.onclick = function(){
 
           if(!selected) return;
-
-          if(selected.peg === p){
-            selected = null;
-            return;
-          }
 
           let top = pegs[p][pegs[p].length-1];
 
@@ -271,30 +248,27 @@ timeline.push({
       });
     }
 
+    function finishTask(solved){
+
+      clearInterval(interval);
+
+      task_data.moves = moves;
+      task_data.time = Math.floor((Date.now()-start)/1000);
+      task_data.solved = solved;
+
+      jsPsych.finishTrial(task_data);
+    }
+
     function checkWin(){
-
       if(pegs.C.length === 3){
-
-        clearInterval(interval);
-
-        jsPsych.finishTrial({
-          moves:moves,
-          time:Math.floor((Date.now()-start)/1000),
-          solved:true
-        });
+        finishTask(true);
       }
     }
 
     render();
 
     document.getElementById("finish").onclick = function(){
-      clearInterval(interval);
-
-      jsPsych.finishTrial({
-        moves:moves,
-        time:Math.floor((Date.now()-start)/1000),
-        solved:false
-      });
+      finishTask(false);
     };
   }
 });
@@ -305,7 +279,7 @@ timeline.push({
 
 timeline.push({
   type: jsPsychHtmlButtonResponse,
-  stimulus:"<h3>Done</h3>",
+  stimulus:`<h2>Twoja odpowiedź została zapisana</h2>`,
   choices:["Continue"]
 });
 
