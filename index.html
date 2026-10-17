@@ -190,34 +190,17 @@ timeline.push({
         Math.floor((Date.now()-start)/1000);
     }
 
-    function render(){
+function render(){
+const d = document.createElement("div");
+d.className = "ball";
 
-      ["A","B","C"].forEach(p=>{
+d.style.bottom = (i * 35) + "px";
 
-        let peg = document.getElementById(p);
-        peg.querySelectorAll(".disk").forEach(d=>d.remove());
+d.style.background =
+  size === 1 ? "#2ecc71" :
+  size === 2 ? "#f39c12" : "#e74c3c";
 
-        pegs[p].forEach((size,i)=>{
-
-          let d = document.createElement("div");
-          d.className="disk";
-          d.dataset.size=size;
-
-          d.style.width=(50+size*35)+"px";
-          d.style.bottom=(i*32)+"px";
-          d.style.background = size==1?"#2ecc71":size==2?"#f39c12":"#e74c3c";
-          d.innerText=size;
-
-          if(i===pegs[p].length-1){
-            d.onclick = function(e){
-              e.stopPropagation();
-              document.querySelectorAll(".disk").forEach(x=>x.classList.remove("selected"));
-              selected = {peg:p,size:size};
-              d.classList.add("selected");
-            };
-          }
-
-          peg.appendChild(d);
+peg.appendChild(d);
         });
 
         peg.onclick = function(){
