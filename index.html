@@ -1,18 +1,15 @@
-<!DOCTYPE html>
+how does it work <!DOCTYPE html>
 <html>
 <head>
 <meta charset="UTF-8">
-<title>Tower of London Task</title>
+<title>Tower of Hanoi Study</title>
 
-<script src="https://unpkg.com/jspsych@8.3.0"></script>
-<link rel="stylesheet"
-      href="https://unpkg.com/jspsych@8.3.0/css/jspsych.css">
+<script src="https://unpkg.com/jspsych@7.3.3"></script>
+<link href="https://unpkg.com/jspsych@7.3.3/css/jspsych.css" rel="stylesheet">
 
-<script src="https://unpkg.com/@jspsych/plugin-survey-text@2.0.0"></script>
-<script src="https://unpkg.com/@jspsych/plugin-html-button-response@2.0.0"></script>
+<script src="https://unpkg.com/@jspsych/plugin-survey-text@1.1.3"></script>
+<script src="https://unpkg.com/@jspsych/plugin-html-button-response@1.1.3"></script>
 
-<script src="https://unpkg.com/@jspsych-contrib/plugin-tower-of-london@1.0.0"></script>
-    
 <style>
 body{
   font-family: Arial;
@@ -190,17 +187,34 @@ timeline.push({
         Math.floor((Date.now()-start)/1000);
     }
 
-function render(){
-const d = document.createElement("div");
-d.className = "ball";
+    function render(){
 
-d.style.bottom = (i * 35) + "px";
+      ["A","B","C"].forEach(p=>{
 
-d.style.background =
-  size === 1 ? "#2ecc71" :
-  size === 2 ? "#f39c12" : "#e74c3c";
+        let peg = document.getElementById(p);
+        peg.querySelectorAll(".disk").forEach(d=>d.remove());
 
-peg.appendChild(d);
+        pegs[p].forEach((size,i)=>{
+
+          let d = document.createElement("div");
+          d.className="disk";
+          d.dataset.size=size;
+
+          d.style.width=(50+size*35)+"px";
+          d.style.bottom=(i*32)+"px";
+          d.style.background = size==1?"#2ecc71":size==2?"#f39c12":"#e74c3c";
+          d.innerText=size;
+
+          if(i===pegs[p].length-1){
+            d.onclick = function(e){
+              e.stopPropagation();
+              document.querySelectorAll(".disk").forEach(x=>x.classList.remove("selected"));
+              selected = {peg:p,size:size};
+              d.classList.add("selected");
+            };
+          }
+
+          peg.appendChild(d);
         });
 
         peg.onclick = function(){
@@ -265,7 +279,7 @@ peg.appendChild(d);
 
 timeline.push({
   type: jsPsychHtmlButtonResponse,
-  stimulus:`<h2>Twoja odpowiedź została zapisana</h2>`,
+  stimulus:<h2>Twoja odpowiedź została zapisana</h2>,
   choices:["Continue"]
 });
 
