@@ -1,289 +1,496 @@
- <!DOCTYPE html>
-<html>
+<!DOCTYPE html>
+<html lang="en">
 <head>
-<meta charset="UTF-8">
-<title>Tower of Hanoi Study</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Tower of Hanoi Study</title>
 
-<script src="https://unpkg.com/jspsych@7.3.3"></script>
-<link href="https://unpkg.com/jspsych@7.3.3/css/jspsych.css" rel="stylesheet">
+  <!-- jsPsych 7.3.3 -->
+  <script src="https://unpkg.com/jspsych@7.3.3"></script>
 
-<script src="https://unpkg.com/@jspsych/plugin-survey-text@1.1.3"></script>
-<script src="https://unpkg.com/@jspsych/plugin-html-button-response@1.1.3"></script>
+  <link
+    href="https://unpkg.com/jspsych@7.3.3/css/jspsych.css"
+    rel="stylesheet"
+  >
 
-<style>
-body{
-  font-family: Arial;
-  text-align:center;
-}
+  <!-- jsPsych plugins -->
+  <script src="https://unpkg.com/@jspsych/plugin-survey-text@1.1.3"></script>
+  <script src="https://unpkg.com/@jspsych/plugin-html-button-response@1.1.3"></script>
 
-#board{
-  display:flex;
-  justify-content:space-around;
-  align-items:flex-end;
-  margin-top:30px;
-}
-
-.peg{
-  width:180px;
-  height:320px;
-  position:relative;
-  border-bottom:4px solid black;
-  cursor:pointer;
-}
-
-.rod{
-  width:8px;
-  height:250px;
-  background:black;
-  position:absolute;
-  left:50%;
-  transform:translateX(-50%);
-  bottom:0;
-}
-
-.peg-label{
-  position:absolute;
-  bottom:-30px;
-  width:100%;
-  font-weight:bold;
-}
-
-.disk{
-  position:absolute;
-  left:50%;
-  transform:translateX(-50%);
-  height:28px;
-  line-height:28px;
-  border-radius:6px;
-  color:white;
-  cursor:pointer;
-  user-select:none;
-}
-
-.disk.selected{
-  outline:4px solid black;
-  box-shadow:0 0 10px rgba(0,0,0,0.4);
-}
-
-#info{
-  margin-top:15px;
-  font-size:18px;
-}
-
-#message{
-  height:25px;
-  color:red;
-}
-</style>
-</head>
-
-<body></body>
-
-<script>
-
-// ==========================
-// GOOGLE FORM 2 LINK
-// ==========================
-
-const GOOGLE_FORM_BASE =
-"https://docs.google.com/forms/d/e/1FAIpQLSe2xc_3B20WsNyfke8pMoPjkC4HukajEcNG3HWK6LL_wsBx3Q/viewform?usp=pp_url";
-
-// ==========================
-// GLOBAL VARIABLES
-// ==========================
-
-let participant_id = "";
-let task_data = {moves:0, time:0, solved:false};
-
-// ==========================
-// INIT
-// ==========================
-
-const jsPsych = initJsPsych({
-  on_finish: function(data){
-
-    let url =
-      GOOGLE_FORM_BASE +
-      "&entry.146328682=" + encodeURIComponent(participant_id) +
-      "&entry.558532723=" + encodeURIComponent(task_data.moves) +
-      "&entry.1869517534=" + encodeURIComponent(task_data.time) +
-      "&entry.1053943810=" + encodeURIComponent(task_data.solved);
-
-    window.location.href = url;
-  }
-});
-
-let timeline = [];
-
-// ==========================
-// PARTICIPANT ID
-// ==========================
-
-timeline.push({
-  type: jsPsychSurveyText,
-  questions:[{
-    prompt:"Participant ID:",
-    name:"participant_id"
-  }],
-  on_finish: function(data){
-    participant_id = data.response.participant_id;
-  }
-});
-
-// ==========================
-// INSTRUCTIONS
-// ==========================
-
-timeline.push({
-  type: jsPsychHtmlButtonResponse,
-  stimulus: `
-    <h2>Tower of Hanoi</h2>
-    <p>Move all disks from A to C.</p>
-
-    <ul>
-      <li>Only one disk at a time</li>
-      <li>Only top disk can move</li>
-      <li>No larger disk on smaller disk</li>
-    </ul>
-  `,
-  choices:["Start"]
-});
-
-// ==========================
-// TASK
-// ==========================
-
-timeline.push({
-  type: jsPsychHtmlButtonResponse,
-  stimulus: `
-    <div id="info">
-      Moves: <span id="moves">0</span> |
-      Time: <span id="time">0</span>
-    </div>
-
-    <div id="message"></div>
-
-    <div id="board">
-      <div class="peg" id="A"><div class="rod"></div><div class="peg-label">A</div></div>
-      <div class="peg" id="B"><div class="rod"></div><div class="peg-label">B</div></div>
-      <div class="peg" id="C"><div class="rod"></div><div class="peg-label">C</div></div>
-    </div>
-
-    <button id="finish">Finish</button>
-  `,
-
-  choices: [],
-
-  on_load: function(){
-
-    let pegs = {A:[3,2,1], B:[], C:[]};
-    let selected = null;
-    let moves = 0;
-    let start = null;
-    let interval;
-
-    function updateTime(){
-      document.getElementById("time").innerText =
-        Math.floor((Date.now()-start)/1000);
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      text-align: center;
     }
 
-    function render(){
+    #board {
+      display: flex;
+      justify-content: space-around;
+      align-items: flex-end;
+      gap: 10px;
+      max-width: 800px;
+      margin: 35px auto 45px;
+    }
 
-      ["A","B","C"].forEach(p=>{
+    .peg {
+      width: 180px;
+      height: 320px;
+      position: relative;
+      border-bottom: 4px solid black;
+      cursor: pointer;
+      box-sizing: border-box;
+    }
 
-        let peg = document.getElementById(p);
-        peg.querySelectorAll(".disk").forEach(d=>d.remove());
+    .rod {
+      width: 8px;
+      height: 250px;
+      background: black;
+      position: absolute;
+      left: 50%;
+      transform: translateX(-50%);
+      bottom: 0;
+      pointer-events: none;
+    }
 
-        pegs[p].forEach((size,i)=>{
+    .peg-label {
+      position: absolute;
+      bottom: -30px;
+      width: 100%;
+      font-weight: bold;
+      left: 0;
+      pointer-events: none;
+    }
 
-          let d = document.createElement("div");
-          d.className="disk";
-          d.dataset.size=size;
+    .disk {
+      position: absolute;
+      left: 50%;
+      transform: translateX(-50%);
+      height: 28px;
+      line-height: 28px;
+      border-radius: 6px;
+      color: white;
+      cursor: pointer;
+      user-select: none;
+      z-index: 2;
+      border: none;
+      padding: 0;
+      font-size: 16px;
+    }
 
-          d.style.width=(50+size*35)+"px";
-          d.style.bottom=(i*32)+"px";
-          d.style.background = size==1?"#2ecc71":size==2?"#f39c12":"#e74c3c";
-          d.innerText=size;
+    .disk.selected {
+      outline: 4px solid black;
+      box-shadow: 0 0 10px rgba(0, 0, 0, 0.4);
+    }
 
-          if(i===pegs[p].length-1){
-            d.onclick = function(e){
-              e.stopPropagation();
-              document.querySelectorAll(".disk").forEach(x=>x.classList.remove("selected"));
-              selected = {peg:p,size:size};
-              d.classList.add("selected");
-            };
+    #info {
+      margin-top: 20px;
+      font-size: 18px;
+    }
+
+    #message {
+      min-height: 28px;
+      margin-top: 12px;
+      color: #c0392b;
+      font-weight: bold;
+    }
+
+    #finish {
+      margin: 10px;
+      padding: 10px 22px;
+      cursor: pointer;
+    }
+
+    @media (max-width: 600px) {
+      #board {
+        gap: 5px;
+      }
+
+      .peg {
+        width: 31%;
+      }
+
+      .disk {
+        max-width: 95%;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div id="experiment"></div>
+
+  <script>
+    // =====================================
+    // GOOGLE FORM 2 LINK
+    // Keep your existing prefilled form URL.
+    // =====================================
+
+    const GOOGLE_FORM_BASE =
+      "https://docs.google.com/forms/d/e/1FAIpQLSe2xc_3B20WsNyfke8pMoPjkC4HukajEcNG3HWK6LL_wsBx3Q/viewform?usp=pp_url";
+
+    // =====================================
+    // GLOBAL DATA
+    // =====================================
+
+    let participant_id = "";
+
+    let task_data = {
+      moves: 0,
+      time: 0,
+      solved: false,
+      move_log: []
+    };
+
+    // =====================================
+    // INITIALIZE jsPsych
+    // =====================================
+
+    const jsPsych = initJsPsych({
+      display_element: "experiment",
+
+      on_finish: function () {
+        // Redirect only after the final screen has finished.
+        const url =
+          GOOGLE_FORM_BASE +
+          "&entry.146328682=" +
+          encodeURIComponent(participant_id) +
+          "&entry.558532723=" +
+          encodeURIComponent(task_data.moves) +
+          "&entry.1869517534=" +
+          encodeURIComponent(task_data.time) +
+          "&entry.1053943810=" +
+          encodeURIComponent(task_data.solved);
+
+        window.location.href = url;
+      }
+    });
+
+    const timeline = [];
+
+    // =====================================
+    // TRIAL 1: PARTICIPANT ID
+    // =====================================
+
+    timeline.push({
+      type: jsPsychSurveyText,
+
+      questions: [
+        {
+          prompt: "Participant ID:",
+          name: "participant_id",
+          required: true
+        }
+      ],
+
+      button_label: "Continue",
+
+      on_finish: function (data) {
+        const response = data.response || {};
+        participant_id = String(
+          response.participant_id || ""
+        ).trim();
+      }
+    });
+
+    // =====================================
+    // TRIAL 2: INSTRUCTIONS
+    // =====================================
+
+    timeline.push({
+      type: jsPsychHtmlButtonResponse,
+
+      stimulus: `
+        <h2>Tower of Hanoi</h2>
+
+        <p>Move all three disks from peg A to peg C.</p>
+
+        <ul style="display:inline-block;text-align:left">
+          <li>Move only one disk at a time.</li>
+          <li>Only the top disk on a peg can be moved.</li>
+          <li>You cannot place a larger disk on a smaller disk.</li>
+        </ul>
+
+        <p>Click a disk to select it, then click a destination peg.</p>
+      `,
+
+      choices: ["Start"]
+    });
+
+    // =====================================
+    // TRIAL 3: TOWER OF HANOI TASK
+    // =====================================
+
+    timeline.push({
+      type: jsPsychHtmlButtonResponse,
+
+      stimulus: `
+        <h2>Tower of Hanoi</h2>
+
+        <div id="info">
+          Moves: <span id="moves">0</span>
+          &nbsp; | &nbsp;
+          Time: <span id="time">0</span> seconds
+        </div>
+
+        <div id="message" aria-live="polite"></div>
+
+        <div id="board">
+          <div class="peg" id="A">
+            <div class="rod"></div>
+            <div class="peg-label">A</div>
+          </div>
+
+          <div class="peg" id="B">
+            <div class="rod"></div>
+            <div class="peg-label">B</div>
+          </div>
+
+          <div class="peg" id="C">
+            <div class="rod"></div>
+            <div class="peg-label">C</div>
+          </div>
+        </div>
+
+        <button id="finish" type="button">
+          Finish task
+        </button>
+      `,
+
+      // The custom board has its own controls.
+      choices: [],
+
+      data: {
+        task: "tower_of_hanoi"
+      },
+
+      on_load: function () {
+        // Arrays list disks from bottom to top.
+        let pegs = {
+          A: [3, 2, 1],
+          B: [],
+          C: []
+        };
+
+        let selected = null;
+        let moves = 0;
+        let moveLog = [];
+        let finished = false;
+
+        // Timer starts when the task appears.
+        const startTime = Date.now();
+
+        const pegNames = ["A", "B", "C"];
+
+        const colors = {
+          1: "#2ecc71",
+          2: "#f39c12",
+          3: "#e74c3c"
+        };
+
+        let interval = null;
+
+        const messageEl = document.getElementById("message");
+        const movesEl = document.getElementById("moves");
+        const timeEl = document.getElementById("time");
+        const finishButton = document.getElementById("finish");
+
+        function elapsedSeconds() {
+          return Math.floor((Date.now() - startTime) / 1000);
+        }
+
+        function updateTime() {
+          if (!finished) {
+            timeEl.textContent = elapsedSeconds();
           }
+        }
 
-          peg.appendChild(d);
-        });
+        function render() {
+          pegNames.forEach(function (pegName) {
+            const pegEl = document.getElementById(pegName);
 
-        peg.onclick = function(){
+            // Remove old disks but keep the rod and label.
+            pegEl.querySelectorAll(".disk").forEach(function (disk) {
+              disk.remove();
+            });
 
-          if(!selected) return;
+            pegs[pegName].forEach(function (size, index) {
+              const disk = document.createElement("button");
 
-          let top = pegs[p][pegs[p].length-1];
+              disk.type = "button";
+              disk.className = "disk";
+              disk.textContent = size;
+              disk.dataset.size = size;
 
-          if(top && selected.size > top){
-            document.getElementById("message").innerText = "Illegal move";
+              disk.style.width = (50 + size * 35) + "px";
+              disk.style.bottom = (index * 32) + "px";
+              disk.style.backgroundColor = colors[size];
+
+              disk.setAttribute(
+                "aria-label",
+                "Disk " + size + " on peg " + pegName
+              );
+
+              const isTopDisk =
+                index === pegs[pegName].length - 1;
+
+              if (isTopDisk) {
+                if (
+                  selected &&
+                  selected.peg === pegName &&
+                  selected.size === size
+                ) {
+                  disk.classList.add("selected");
+                }
+
+                disk.addEventListener("click", function (event) {
+                  event.stopPropagation();
+
+                  if (finished) return;
+
+                  selected = {
+                    peg: pegName,
+                    size: size
+                  };
+
+                  messageEl.textContent =
+                    "Disk selected. Now click a destination peg.";
+
+                  render();
+                });
+              } else {
+                disk.disabled = true;
+              }
+
+              pegEl.appendChild(disk);
+            });
+
+            pegEl.onclick = function () {
+              handlePegClick(pegName);
+            };
+          });
+        }
+
+        function handlePegClick(destination) {
+          if (finished || selected === null) {
             return;
           }
 
-          if(!start){
-            start = Date.now();
-            interval = setInterval(updateTime,500);
+          // Clicking the source peg cancels the selection.
+          if (selected.peg === destination) {
+            selected = null;
+            messageEl.textContent = "Selection cancelled.";
+            render();
+            return;
           }
 
-          pegs[selected.peg].pop();
-          pegs[p].push(selected.size);
+          const destinationDisks = pegs[destination];
+
+          const destinationTop =
+            destinationDisks.length > 0
+              ? destinationDisks[destinationDisks.length - 1]
+              : null;
+
+          // A larger disk cannot go on a smaller disk.
+          if (
+            destinationTop !== null &&
+            selected.size > destinationTop
+          ) {
+            messageEl.textContent =
+              "Illegal move: a larger disk cannot go on a smaller disk.";
+
+            return;
+          }
+
+          const source = selected.peg;
+          const diskSize = selected.size;
+
+          // Apply the move.
+          pegs[source].pop();
+          pegs[destination].push(diskSize);
 
           moves++;
-          document.getElementById("moves").innerText = moves;
+
+          moveLog.push({
+            move_number: moves,
+            disk_size: diskSize,
+            from_peg: source,
+            to_peg: destination,
+            elapsed_seconds: elapsedSeconds()
+          });
 
           selected = null;
-          document.getElementById("message").innerText = "";
+
+          movesEl.textContent = moves;
+          messageEl.textContent = "";
 
           render();
-          checkWin();
-        };
-      });
-    }
 
-    function finishTask(solved){
+          // The task is solved when all disks are on peg C.
+          if (pegs.C.length === 3) {
+            finishTask(true);
+          }
+        }
 
-      clearInterval(interval);
+        function finishTask(solved) {
+          // Prevent double submission.
+          if (finished) return;
 
-      task_data.moves = moves;
-      task_data.time = Math.floor((Date.now()-start)/1000);
-      task_data.solved = solved;
+          finished = true;
 
-      jsPsych.finishTrial(task_data);
-    }
+          if (interval !== null) {
+            clearInterval(interval);
+          }
 
-    function checkWin(){
-      if(pegs.C.length === 3){
-        finishTask(true);
+          finishButton.disabled = true;
+
+          task_data.moves = moves;
+          task_data.time = elapsedSeconds();
+          task_data.solved = solved;
+          task_data.move_log = moveLog;
+
+          // Finish this jsPsych trial.
+          jsPsych.finishTrial({
+            task: "tower_of_hanoi",
+            participant_id: participant_id,
+            moves: task_data.moves,
+            time: task_data.time,
+            solved: task_data.solved,
+            move_log: JSON.stringify(task_data.move_log)
+          });
+        }
+
+        finishButton.addEventListener("click", function () {
+          finishTask(false);
+        });
+
+        render();
+
+        updateTime();
+        interval = setInterval(updateTime, 500);
       }
-    }
+    });
 
-    render();
+    // =====================================
+    // TRIAL 4: END SCREEN
+    // =====================================
 
-    document.getElementById("finish").onclick = function(){
-      finishTask(false);
-    };
-  }
-});
+    timeline.push({
+      type: jsPsychHtmlButtonResponse,
 
-// ==========================
-// END SCREEN
-// ==========================
+      stimulus: `
+        <h2>Thank you for completing the task!</h2>
+        <p>Click Continue to proceed to the final questionnaire.</p>
+      `,
 
-timeline.push({
-  type: jsPsychHtmlButtonResponse,
-  stimulus:<h2>Twoja odpowiedź została zapisana</h2>,
-  choices:["Continue"]
-});
+      choices: ["Continue"]
+    });
 
-jsPsych.run(timeline);
+    // =====================================
+    // RUN EXPERIMENT
+    // =====================================
 
-</script>
+    jsPsych.run(timeline);
+  </script>
+</body>
 </html>
+
