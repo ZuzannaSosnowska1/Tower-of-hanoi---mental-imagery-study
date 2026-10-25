@@ -3,163 +3,141 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Tower of Hanoi Study</title>
+  <title>Tower of London Task</title>
 
   <!-- jsPsych 7.3.3 -->
   <script src="https://unpkg.com/jspsych@7.3.3"></script>
-
-  <link
-    href="https://unpkg.com/jspsych@7.3.3/css/jspsych.css"
-    rel="stylesheet"
-  >
+  <link rel="stylesheet" href="https://unpkg.com/jspsych@7.3.3/css/jspsych.css">
 
   <!-- jsPsych plugins -->
   <script src="https://unpkg.com/@jspsych/plugin-survey-text@1.1.3"></script>
   <script src="https://unpkg.com/@jspsych/plugin-html-button-response@1.1.3"></script>
 
   <style>
-    body {
-      font-family: Arial, sans-serif;
-      text-align: center;
+    body { font-family: Arial, sans-serif; text-align: center; }
+    .instructions { max-width: 760px; margin: 0 auto; text-align: left; }
+    .boards-wrap {
+      display: flex; justify-content: center; align-items: flex-start;
+      gap: 34px; flex-wrap: wrap; margin: 22px auto; max-width: 900px;
     }
-
-    #board {
-      display: flex;
-      justify-content: space-around;
-      align-items: flex-end;
-      gap: 10px;
-      max-width: 800px;
-      margin: 35px auto 45px;
-    }
-
-    .peg {
-      width: 180px;
-      height: 320px;
-      position: relative;
-      border-bottom: 4px solid black;
-      cursor: pointer;
+    .board-panel { width: min(100%, 390px); }
+    .board-panel h3 { margin-bottom: 8px; }
+    .board {
+      display: flex; align-items: flex-end; justify-content: space-around;
+      gap: 8px; min-height: 260px; padding: 12px 8px 30px;
+      border: 1px solid #ddd; border-radius: 8px; background: #fafafa;
       box-sizing: border-box;
     }
-
+    .peg {
+      position: relative; width: 30%; min-width: 75px; height: 220px;
+      border-bottom: 5px solid #555; box-sizing: border-box;
+    }
     .rod {
-      width: 8px;
-      height: 250px;
-      background: black;
-      position: absolute;
-      left: 50%;
-      transform: translateX(-50%);
-      bottom: 0;
+      position: absolute; bottom: 0; left: 50%; transform: translateX(-50%);
+      width: 8px; background: #777; border-radius: 5px 5px 0 0;
       pointer-events: none;
     }
-
     .peg-label {
-      position: absolute;
-      bottom: -30px;
-      width: 100%;
-      font-weight: bold;
-      left: 0;
-      pointer-events: none;
+      position: absolute; bottom: -26px; left: 0; width: 100%;
+      font-weight: bold; pointer-events: none;
     }
-
-    .disk {
-      position: absolute;
-      left: 50%;
-      transform: translateX(-50%);
-      height: 28px;
-      line-height: 28px;
-      border-radius: 6px;
-      color: white;
-      cursor: pointer;
-      user-select: none;
-      z-index: 2;
-      border: none;
-      padding: 0;
-      font-size: 16px;
+    .ball {
+      position: absolute; left: 50%; transform: translateX(-50%);
+      width: 48px; height: 38px; border-radius: 50%;
+      color: #fff; font-weight: bold; font-size: 15px;
+      border: 2px solid rgba(0,0,0,.18); cursor: pointer; z-index: 2;
+      display: flex; align-items: center; justify-content: center;
+      padding: 0; box-sizing: border-box;
     }
-
-    .disk.selected {
-      outline: 4px solid black;
-      box-shadow: 0 0 10px rgba(0, 0, 0, 0.4);
-    }
-
-    #info {
-      margin-top: 20px;
-      font-size: 18px;
-    }
-
-    #message {
-      min-height: 28px;
-      margin-top: 12px;
-      color: #c0392b;
-      font-weight: bold;
-    }
-
-    #finish {
-      margin: 10px;
-      padding: 10px 22px;
-      cursor: pointer;
-    }
-
+    .ball.selected { outline: 4px solid #222; outline-offset: 2px; }
+    .ball:disabled { cursor: default; opacity: 1; }
+    .goal-ball { cursor: default; }
+    #status { min-height: 28px; margin: 8px auto; font-weight: bold; color: #8a2d22; }
+    #stats { margin: 10px 0; font-size: 17px; }
+    #finish-round { margin: 8px; padding: 10px 18px; font-size: 16px; cursor: pointer; }
+    .capacity-note { font-size: 13px; color: #555; margin-top: 6px; }
     @media (max-width: 600px) {
-      #board {
-        gap: 5px;
-      }
-
-      .peg {
-        width: 31%;
-      }
-
-      .disk {
-        max-width: 95%;
-      }
+      .boards-wrap { gap: 12px; }
+      .board-panel { width: 100%; }
+      .board { min-height: 235px; }
+      .peg { min-width: 65px; height: 195px; }
+      .ball { width: 42px; height: 34px; }
     }
   </style>
 </head>
-
 <body>
   <div id="experiment"></div>
 
   <script>
-    // =====================================
-    // GOOGLE FORM 2 LINK
-    // Keep your existing prefilled form URL.
-    // =====================================
+    // =========================================================
+    // SETTINGS YOU CAN CHANGE
+    // =========================================================
 
+    // Peg capacities from left to right: A can hold 3 balls,
+    // B can hold 2 balls, and C can hold 1 ball.
+    const PEGS = ["A", "B", "C"];
+    const CAPACITY = { A: 3, B: 2, C: 1 };
+
+    // Each array lists balls from BOTTOM to TOP.
+    // Ball numbers identify the colored balls; they are not sizes.
+    // You can edit the start and goal arrangements below.
+    const rounds = [
+      {
+        id: "TOL_01",
+        start: { A: [1, 2, 3], B: [], C: [] },
+        goal:  { A: [1], B: [2], C: [3] }
+      },
+      {
+        id: "TOL_02",
+        start: { A: [1, 2], B: [3], C: [] },
+        goal:  { A: [1], B: [2, 3], C: [] }
+      },
+      {
+        id: "TOL_03",
+        start: { A: [1], B: [2, 3], C: [] },
+        goal:  { A: [1, 2, 3], B: [], C: [] }
+      },
+      {
+        id: "TOL_04",
+        start: { A: [1, 2], B: [], C: [3] },
+        goal:  { A: [1], B: [2], C: [3] }
+      },
+      {
+        id: "TOL_05",
+        start: { A: [1], B: [2], C: [3] },
+        goal:  { A: [1, 2], B: [3], C: [] }
+      }
+    ];
+
+    const BALL_COLORS = {
+      1: "#2878b5",
+      2: "#e67e22",
+      3: "#2e9d62"
+    };
+
+    // Keep your existing final Google Form URL and entry IDs here.
+    // This form is opened after the task. Confirm the entry IDs still
+    // match the questions in your own Google Form.
     const GOOGLE_FORM_BASE =
       "https://docs.google.com/forms/d/e/1FAIpQLSe2xc_3B20WsNyfke8pMoPjkC4HukajEcNG3HWK6LL_wsBx3Q/viewform?usp=pp_url";
 
-    // =====================================
-    // GLOBAL DATA
-    // =====================================
-
-    let participant_id = "";
-
-    let task_data = {
-      moves: 0,
-      time: 0,
-      solved: false,
-      move_log: []
-    };
-
-    // =====================================
-    // INITIALIZE jsPsych
-    // =====================================
+    let participantId = "";
+    const allRoundResults = [];
 
     const jsPsych = initJsPsych({
       display_element: "experiment",
-
       on_finish: function () {
-        // Redirect only after the final screen has finished.
-        const url =
-          GOOGLE_FORM_BASE +
-          "&entry.146328682=" +
-          encodeURIComponent(participant_id) +
-          "&entry.558532723=" +
-          encodeURIComponent(task_data.moves) +
-          "&entry.1869517534=" +
-          encodeURIComponent(task_data.time) +
-          "&entry.1053943810=" +
-          encodeURIComponent(task_data.solved);
+        // Overall summary passed to the existing Google Form.
+        const totalMoves = allRoundResults.reduce((sum, r) => sum + r.moves, 0);
+        const totalTime = allRoundResults.reduce((sum, r) => sum + r.time_seconds, 0);
+        const allSolved = allRoundResults.length === rounds.length &&
+                          allRoundResults.every(r => r.solved);
+
+        const url = GOOGLE_FORM_BASE +
+          "&entry.146328682=" + encodeURIComponent(participantId) +
+          "&entry.558532723=" + encodeURIComponent(totalMoves) +
+          "&entry.1869517534=" + encodeURIComponent(totalTime) +
+          "&entry.1053943810=" + encodeURIComponent(allSolved);
 
         window.location.href = url;
       }
@@ -167,330 +145,266 @@
 
     const timeline = [];
 
-    // =====================================
-    // TRIAL 1: PARTICIPANT ID
-    // =====================================
-
     timeline.push({
       type: jsPsychSurveyText,
-
-      questions: [
-        {
-          prompt: "Participant ID:",
-          name: "participant_id",
-          required: true
-        }
-      ],
-
+      questions: [{
+        prompt: "Participant ID:",
+        name: "participant_id",
+        required: true
+      }],
       button_label: "Continue",
-
       on_finish: function (data) {
         const response = data.response || {};
-        participant_id = String(
-          response.participant_id || ""
-        ).trim();
+        participantId = String(response.participant_id || "").trim();
       }
     });
 
-    // =====================================
-    // TRIAL 2: INSTRUCTIONS
-    // =====================================
-
     timeline.push({
       type: jsPsychHtmlButtonResponse,
-
       stimulus: `
-        <h2>Tower of Hanoi</h2>
-
-        <p>Move all three disks from peg A to peg C.</p>
-
-        <ul style="display:inline-block;text-align:left">
-          <li>Move only one disk at a time.</li>
-          <li>Only the top disk on a peg can be moved.</li>
-          <li>You cannot place a larger disk on a smaller disk.</li>
-        </ul>
-
-        <p>Click a disk to select it, then click a destination peg.</p>
-      `,
-
+        <div class="instructions">
+          <h2>Tower of London task</h2>
+          <p>In each round, you will see a starting arrangement and a goal arrangement.
+          Your task is to make the arrangement on the left match the goal on the right.</p>
+          <ul>
+            <li>Click the top ball on a peg to select it.</li>
+            <li>Then click the peg where you want to place that ball.</li>
+            <li>You can move only one ball at a time.</li>
+            <li>A ball can be placed on top of any other ball.</li>
+            <li>Pegs have different capacities: A holds up to 3 balls, B up to 2, and C up to 1.</li>
+            <li>A peg cannot hold more balls than its capacity.</li>
+            <li>If you click the selected ball's peg again, the selection is cancelled.</li>
+            <li>When the left board matches the goal board, the round ends automatically.</li>
+          </ul>
+          <p>Try to reach the goal carefully. There are ${rounds.length} rounds.</p>
+        </div>`,
       choices: ["Start"]
     });
 
-    // =====================================
-    // TRIAL 3: TOWER OF HANOI TASK
-    // =====================================
+    function clonePegs(pegs) {
+      return { A: [...pegs.A], B: [...pegs.B], C: [...pegs.C] };
+    }
 
-    timeline.push({
-      type: jsPsychHtmlButtonResponse,
+    function sameArrangement(a, b) {
+      return PEGS.every(peg =>
+        a[peg].length === b[peg].length &&
+        a[peg].every((ball, i) => ball === b[peg][i])
+      );
+    }
 
-      stimulus: `
-        <h2>Tower of Hanoi</h2>
+    function renderBoard(boardElement, pegState, isGoal, selected, onSelectBall, onSelectPeg) {
+      boardElement.innerHTML = "";
 
-        <div id="info">
-          Moves: <span id="moves">0</span>
-          &nbsp; | &nbsp;
-          Time: <span id="time">0</span> seconds
-        </div>
+      PEGS.forEach(pegName => {
+        const pegEl = document.createElement("div");
+        pegEl.className = "peg";
+        pegEl.dataset.peg = pegName;
 
-        <div id="message" aria-live="polite"></div>
+        const rod = document.createElement("div");
+        rod.className = "rod";
+        // The rod height visually reflects the maximum capacity.
+        rod.style.height = (CAPACITY[pegName] * 48 + 16) + "px";
+        pegEl.appendChild(rod);
 
-        <div id="board">
-          <div class="peg" id="A">
-            <div class="rod"></div>
-            <div class="peg-label">A</div>
-          </div>
+        pegState[pegName].forEach((ballNumber, index) => {
+          const ball = document.createElement("button");
+          ball.type = "button";
+          ball.className = "ball" + (
+            !isGoal && selected &&
+            selected.peg === pegName &&
+            selected.ball === ballNumber ? " selected" : ""
+          );
+          ball.textContent = ballNumber;
+          ball.style.backgroundColor = BALL_COLORS[ballNumber];
+          ball.style.bottom = (index * 42 + 3) + "px";
+          ball.setAttribute("aria-label", "Ball " + ballNumber + " on peg " + pegName);
 
-          <div class="peg" id="B">
-            <div class="rod"></div>
-            <div class="peg-label">B</div>
-          </div>
-
-          <div class="peg" id="C">
-            <div class="rod"></div>
-            <div class="peg-label">C</div>
-          </div>
-        </div>
-
-        <button id="finish" type="button">
-          Finish task
-        </button>
-      `,
-
-      // The custom board has its own controls.
-      choices: [],
-
-      data: {
-        task: "tower_of_hanoi"
-      },
-
-      on_load: function () {
-        // Arrays list disks from bottom to top.
-        let pegs = {
-          A: [3, 2, 1],
-          B: [],
-          C: []
-        };
-
-        let selected = null;
-        let moves = 0;
-        let moveLog = [];
-        let finished = false;
-
-        // Timer starts when the task appears.
-        const startTime = Date.now();
-
-        const pegNames = ["A", "B", "C"];
-
-        const colors = {
-          1: "#2ecc71",
-          2: "#f39c12",
-          3: "#e74c3c"
-        };
-
-        let interval = null;
-
-        const messageEl = document.getElementById("message");
-        const movesEl = document.getElementById("moves");
-        const timeEl = document.getElementById("time");
-        const finishButton = document.getElementById("finish");
-
-        function elapsedSeconds() {
-          return Math.floor((Date.now() - startTime) / 1000);
-        }
-
-        function updateTime() {
-          if (!finished) {
-            timeEl.textContent = elapsedSeconds();
-          }
-        }
-
-        function render() {
-          pegNames.forEach(function (pegName) {
-            const pegEl = document.getElementById(pegName);
-
-            // Remove old disks but keep the rod and label.
-            pegEl.querySelectorAll(".disk").forEach(function (disk) {
-              disk.remove();
+          const isTop = index === pegState[pegName].length - 1;
+          if (isGoal || !isTop) {
+            ball.disabled = true;
+          } else {
+            ball.addEventListener("click", event => {
+              event.stopPropagation();
+              onSelectBall(pegName, ballNumber);
             });
-
-            pegs[pegName].forEach(function (size, index) {
-              const disk = document.createElement("button");
-
-              disk.type = "button";
-              disk.className = "disk";
-              disk.textContent = size;
-              disk.dataset.size = size;
-
-              disk.style.width = (50 + size * 35) + "px";
-              disk.style.bottom = (index * 32) + "px";
-              disk.style.backgroundColor = colors[size];
-
-              disk.setAttribute(
-                "aria-label",
-                "Disk " + size + " on peg " + pegName
-              );
-
-              const isTopDisk =
-                index === pegs[pegName].length - 1;
-
-              if (isTopDisk) {
-                if (
-                  selected &&
-                  selected.peg === pegName &&
-                  selected.size === size
-                ) {
-                  disk.classList.add("selected");
-                }
-
-                disk.addEventListener("click", function (event) {
-                  event.stopPropagation();
-
-                  if (finished) return;
-
-                  selected = {
-                    peg: pegName,
-                    size: size
-                  };
-
-                  messageEl.textContent =
-                    "Disk selected. Now click a destination peg.";
-
-                  render();
-                });
-              } else {
-                disk.disabled = true;
-              }
-
-              pegEl.appendChild(disk);
-            });
-
-            pegEl.onclick = function () {
-              handlePegClick(pegName);
-            };
-          });
-        }
-
-        function handlePegClick(destination) {
-          if (finished || selected === null) {
-            return;
           }
 
-          // Clicking the source peg cancels the selection.
-          if (selected.peg === destination) {
-            selected = null;
-            messageEl.textContent = "Selection cancelled.";
-            render();
-            return;
-          }
-
-          const destinationDisks = pegs[destination];
-
-          const destinationTop =
-            destinationDisks.length > 0
-              ? destinationDisks[destinationDisks.length - 1]
-              : null;
-
-          // A larger disk cannot go on a smaller disk.
-          if (
-            destinationTop !== null &&
-            selected.size > destinationTop
-          ) {
-            messageEl.textContent =
-              "Illegal move: a larger disk cannot go on a smaller disk.";
-
-            return;
-          }
-
-          const source = selected.peg;
-          const diskSize = selected.size;
-
-          // Apply the move.
-          pegs[source].pop();
-          pegs[destination].push(diskSize);
-
-          moves++;
-
-          moveLog.push({
-            move_number: moves,
-            disk_size: diskSize,
-            from_peg: source,
-            to_peg: destination,
-            elapsed_seconds: elapsedSeconds()
-          });
-
-          selected = null;
-
-          movesEl.textContent = moves;
-          messageEl.textContent = "";
-
-          render();
-
-          // The task is solved when all disks are on peg C.
-          if (pegs.C.length === 3) {
-            finishTask(true);
-          }
-        }
-
-        function finishTask(solved) {
-          // Prevent double submission.
-          if (finished) return;
-
-          finished = true;
-
-          if (interval !== null) {
-            clearInterval(interval);
-          }
-
-          finishButton.disabled = true;
-
-          task_data.moves = moves;
-          task_data.time = elapsedSeconds();
-          task_data.solved = solved;
-          task_data.move_log = moveLog;
-
-          // Finish this jsPsych trial.
-          jsPsych.finishTrial({
-            task: "tower_of_hanoi",
-            participant_id: participant_id,
-            moves: task_data.moves,
-            time: task_data.time,
-            solved: task_data.solved,
-            move_log: JSON.stringify(task_data.move_log)
-          });
-        }
-
-        finishButton.addEventListener("click", function () {
-          finishTask(false);
+          pegEl.appendChild(ball);
         });
 
-        render();
+        const label = document.createElement("div");
+        label.className = "peg-label";
+        label.textContent = pegName + " (max " + CAPACITY[pegName] + ")";
+        pegEl.appendChild(label);
 
-        updateTime();
-        interval = setInterval(updateTime, 500);
-      }
+        if (!isGoal) {
+          pegEl.addEventListener("click", () => onSelectPeg(pegName));
+          pegEl.style.cursor = "pointer";
+        }
+        boardElement.appendChild(pegEl);
+      });
+    }
+
+    rounds.forEach((problem, roundIndex) => {
+      timeline.push({
+        type: jsPsychHtmlButtonResponse,
+        stimulus: `
+          <h2>Round ${roundIndex + 1} of ${rounds.length}</h2>
+          <div id="stats">Moves: <span id="move-count">0</span>
+            &nbsp; | &nbsp; Time: <span id="elapsed-time">0</span> seconds</div>
+          <div class="boards-wrap">
+            <div class="board-panel">
+              <h3>Your arrangement</h3>
+              <div id="start-board" class="board"></div>
+              <div class="capacity-note">Move the balls on this board.</div>
+            </div>
+            <div class="board-panel">
+              <h3>Goal arrangement</h3>
+              <div id="goal-board" class="board"></div>
+              <div class="capacity-note">Match this arrangement exactly.</div>
+            </div>
+          </div>
+          <div id="status" aria-live="polite">Select the top ball, then select a destination peg.</div>
+          <button id="finish-round" type="button">End this round</button>
+        `,
+        choices: [],
+        data: { task: "tower_of_london", round_id: problem.id, round_number: roundIndex + 1 },
+        on_load: function () {
+          let pegs = clonePegs(problem.start);
+          const goal = clonePegs(problem.goal);
+          let selected = null;
+          let moves = 0;
+          let finished = false;
+          const moveLog = [];
+          const startTime = Date.now();
+          let intervalId = null;
+
+          const startBoard = document.getElementById("start-board");
+          const goalBoard = document.getElementById("goal-board");
+          const statusEl = document.getElementById("status");
+          const moveCountEl = document.getElementById("move-count");
+          const elapsedTimeEl = document.getElementById("elapsed-time");
+          const finishButton = document.getElementById("finish-round");
+
+          function elapsedSeconds() {
+            return Math.floor((Date.now() - startTime) / 1000);
+          }
+
+          function updateTime() {
+            if (!finished) elapsedTimeEl.textContent = elapsedSeconds();
+          }
+
+          function draw() {
+            renderBoard(
+              startBoard, pegs, false, selected,
+              function (pegName, ballNumber) {
+                if (finished) return;
+                selected = { peg: pegName, ball: ballNumber };
+                statusEl.textContent = "Ball selected. Now click a destination peg.";
+                draw();
+              },
+              function (destination) {
+                if (finished || selected === null) return;
+
+                if (destination === selected.peg) {
+                  selected = null;
+                  statusEl.textContent = "Selection cancelled.";
+                  draw();
+                  return;
+                }
+
+                if (pegs[destination].length >= CAPACITY[destination]) {
+                  statusEl.textContent = "That peg is full. Choose a peg with free space.";
+                  return;
+                }
+
+                const source = selected.peg;
+                const ballNumber = pegs[source][pegs[source].length - 1];
+
+                if (ballNumber !== selected.ball) {
+                  selected = null;
+                  draw();
+                  return;
+                }
+
+                pegs[source].pop();
+                pegs[destination].push(ballNumber);
+                moves += 1;
+
+                moveLog.push({
+                  move_number: moves,
+                  ball: ballNumber,
+                  from_peg: source,
+                  to_peg: destination,
+                  elapsed_seconds: elapsedSeconds(),
+                  arrangement_after_move: JSON.stringify(pegs)
+                });
+
+                selected = null;
+                moveCountEl.textContent = moves;
+                statusEl.textContent = "";
+                draw();
+
+                if (sameArrangement(pegs, goal)) {
+                  finishRound(true);
+                }
+              }
+            );
+            renderBoard(goalBoard, goal, true, null, null, null);
+          }
+
+          function finishRound(solved) {
+            if (finished) return;
+            finished = true;
+            if (intervalId !== null) clearInterval(intervalId);
+            finishButton.disabled = true;
+
+            const result = {
+              task: "tower_of_london",
+              participant_id: participantId,
+              round_id: problem.id,
+              round_number: roundIndex + 1,
+              moves: moves,
+              time_seconds: elapsedSeconds(),
+              solved: solved,
+              start_state: JSON.stringify(problem.start),
+              goal_state: JSON.stringify(goal),
+              final_state: JSON.stringify(pegs),
+              move_log: JSON.stringify(moveLog)
+            };
+            allRoundResults.push({
+              round_id: result.round_id,
+              moves: result.moves,
+              time_seconds: result.time_seconds,
+              solved: result.solved
+            });
+
+            jsPsych.finishTrial(result);
+          }
+
+          finishButton.addEventListener("click", function () {
+            finishRound(false);
+          });
+
+          draw();
+          updateTime();
+          intervalId = setInterval(updateTime, 500);
+        }
+      });
     });
-
-    // =====================================
-    // TRIAL 4: END SCREEN
-    // =====================================
 
     timeline.push({
       type: jsPsychHtmlButtonResponse,
-
       stimulus: `
-        <h2>Thank you for completing the task!</h2>
-        <p>Click Continue to proceed to the final questionnaire.</p>
+        <h2>Thank you!</h2>
+        <p>You have completed all rounds. Click Continue to proceed to the final questionnaire.</p>
       `,
-
       choices: ["Continue"]
     });
-
-    // =====================================
-    // RUN EXPERIMENT
-    // =====================================
 
     jsPsych.run(timeline);
   </script>
 </body>
 </html>
+
 
